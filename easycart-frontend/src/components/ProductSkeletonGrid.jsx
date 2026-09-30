@@ -1,0 +1,3 @@
+export default function ProductSkeletonGrid({ count = 8, columns = "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" }) {
+    return <div className={`grid ${columns} gap-5`} aria-label="Loading products" role="status">{Array.from({ length: count }, (_, index) => <div key={index} className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"><div className="skeleton-shimmer aspect-[4/3] rounded-2xl"/><div className="skeleton-shimmer mt-4 h-4 w-2/5 rounded"/><div className="skeleton-shimmer mt-3 h-6 w-4/5 rounded"/><div className="skeleton-shimmer mt-2 h-4 w-3/5 rounded"/><div className="skeleton-shimmer mt-5 h-10 w-full rounded-xl"/></div>)}<span className="sr-only">Loading products</span></div>;
+}

@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+/* =========================================
+   CART24SEVEN GLOBAL THEME
+   ========================================= */
+
+:root {
+  --cart-yellow: #ffd21f;
+  --cart-yellow-light: #ffe66d;
+  --cart-black: #111111;
+  --cart-purple: #160025;
+  --cart-purple-light: #2a0642;
+  --cart-white: #ffffff;
+  --cart-gray: #f5f5f5;
+  --cart-text: #222222;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--cart-gray);
+  color: var(--cart-text);
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  text-decoration: none;
+}
+
+/* =========================================
+   CART24SEVEN BUTTONS
+   ========================================= */
+
+.cart-btn {
+  background-color: var(--cart-yellow);
+  color: var(--cart-black);
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.cart-btn:hover {
+  background-color: #e8b900;
+  transform: translateY(-1px);
+}
+
+/* =========================================
+   PRIMARY BUTTON
+   ========================================= */
+
+.cart-primary-btn {
+  background-color: var(--cart-yellow);
+  color: var(--cart-black);
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.cart-primary-btn:hover {
+  background-color: #e8b900;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* =========================================
+   SCROLLBAR
+   ========================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cart-purple);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cart-black);
+}
+
+/* =========================================
+   SELECTION
+   ========================================= */
+
+::selection {
+  background: var(--cart-yellow);
+  color: var(--cart-black);
+}
+
+/* Responsive polish and accessible loading states. */
+html, body, #root { min-height: 100%; }
+body { min-width: 320px; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #d2a900; outline-offset: 2px; }
+.skeleton-shimmer { background: linear-gradient(100deg, #e8ebef 20%, #f7f8fa 38%, #e8ebef 56%); background-size: 220% 100%; animation: skeleton-shimmer 1.35s ease-in-out infinite; }
+@keyframes skeleton-shimmer { to { background-position-x: -220%; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* Dark theme is applied through the persistent theme toggle in the navigation. */
+html[data-theme="dark"] { color-scheme: dark; }
+html[data-theme="dark"] body { background: #0b1220; color: #e5e7eb; }
+html[data-theme="dark"] main { background-color: #0d1522 !important; color: #e5e7eb; }
+html[data-theme="dark"] .bg-white { background-color: #151f2d !important; }
+html[data-theme="dark"] .bg-slate-50, html[data-theme="dark"] .bg-gray-50 { background-color: #111b28 !important; }
+html[data-theme="dark"] .bg-slate-100 { background-color: #0d1522 !important; }
+html[data-theme="dark"] [class~="bg-[#faf9f4]"], html[data-theme="dark"] [class~="bg-[#f7f6f2]"], html[data-theme="dark"] [class~="bg-[#f6f6f4]"], html[data-theme="dark"] [class~="bg-[#f6f5f1]"] { background-color: #111b28 !important; }
+html[data-theme="dark"] [class~="text-[#111111]"], html[data-theme="dark"] [class~="text-slate-950"], html[data-theme="dark"] [class~="text-slate-900"] { color: #f8fafc !important; }
+html[data-theme="dark"] [class~="text-slate-800"], html[data-theme="dark"] [class~="text-slate-700"] { color: #e2e8f0 !important; }
+html[data-theme="dark"] [class~="text-slate-600"], html[data-theme="dark"] [class~="text-slate-500"] { color: #b2bfd0 !important; }
+html[data-theme="dark"] [class~="text-slate-400"] { color: #91a0b4 !important; }
+html[data-theme="dark"] [class~="text-[#6f5500]"], html[data-theme="dark"] [class~="text-[#725700]"], html[data-theme="dark"] [class~="text-[#725800]"], html[data-theme="dark"] [class~="text-[#806100]"] { color: #f6d65b !important; }
+html[data-theme="dark"] [class~="bg-[#FFD21F]"][class~="text-[#111111]"], html[data-theme="dark"] [class~="bg-[#ffd21f]"][class~="text-slate-950"], html[data-theme="dark"] [class~="bg-[#e8b900]"][class~="text-slate-950"] { color: #111111 !important; }
+html[data-theme="dark"] [class*="border-slate-"], html[data-theme="dark"] [class*="border-gray-"] { border-color: #344154 !important; }
+html[data-theme="dark"] input:not([type="checkbox"]), html[data-theme="dark"] select, html[data-theme="dark"] textarea { background-color: #111b28; color: #f1f5f9; border-color: #475569; }
+html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #91a0b4; }
+html[data-theme="dark"] .skeleton-shimmer { background: linear-gradient(100deg, #1d2938 20%, #293648 38%, #1d2938 56%); background-size: 220% 100%; }
+html[data-theme="dark"] .hover\:bg-slate-50:hover, html[data-theme="dark"] .hover\:bg-slate-100:hover { background-color: #202d3d !important; }
+
+@media (max-width: 480px) {
+  main { overflow-x: clip; }
+  h1 { overflow-wrap: anywhere; }
+}
