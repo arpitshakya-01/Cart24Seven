@@ -19,6 +19,8 @@ Cart24Seven is a full-stack ecommerce platform with a React storefront and a Jav
 - **Database:** MySQL with direct JDBC and prepared statements
 
 ## Project layout
+See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for the complete folder and file chart.
+
 
 ```text
 .
