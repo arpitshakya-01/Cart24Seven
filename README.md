@@ -25,7 +25,7 @@ The deployment described by `render.yaml` uses Render as the primary host. Its s
 
 [Open Cart24Seven](https://cart24seven-site.onrender.com)
 
--Important Note: Please wait for 1 minute after opening the link of live website because i am using the free server for testing so it takes 50-60 seconds to run again after inactivity.
+Important Note: Please wait for 1 minute after opening the link of live website because i am using the free server for testing so it takes 50-60 seconds to run again after inactivity.
 
 ## Password
 
