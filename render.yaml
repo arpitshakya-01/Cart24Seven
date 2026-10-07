@@ -5,7 +5,7 @@ services:
     rootDir: easycart-backend
     dockerfilePath: ./Dockerfile
     plan: free
-    healthCheckPath: /
+    healthCheckPath: /api/products
     envVars:
       - key: SPRING_DATASOURCE_URL
         sync: false
