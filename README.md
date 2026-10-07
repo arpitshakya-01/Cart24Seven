@@ -19,7 +19,7 @@ Cart24Seven is a full-stack marketplace where buyers browse and order products, 
 - **Database:** MySQL 8 with direct JDBC and prepared statements
 - **Deployment:** Render for the frontend and API; Aiven MySQL for the hosted database; Docker for the API container
 
-The repository also contains `easycart-frontend/vercel.json` for client-side route rewrites. The deployment described by `render.yaml` uses Render as the primary host.
+The deployment described by `render.yaml` uses Render as the primary host. Its static-site rewrite serves `index.html` for browser routes so React Router pages work when opened or refreshed directly.
 
 ## Live website
 
