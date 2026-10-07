@@ -21,6 +21,14 @@ Cart24Seven is a full-stack marketplace where buyers browse and order products, 
 
 The repository also contains `easycart-frontend/vercel.json` for client-side route rewrites. The deployment described by `render.yaml` uses Render as the primary host.
 
+## Live website
+
+[Open Cart24Seven](https://cart24seven-site.onrender.com)
+
+## Password
+
+For the live admin account, set or update `CART24SEVEN_ADMIN_PASSWORD` in the Render `cart24seven-api` service environment settings. Buyer and seller passwords are set when those users register. Do not put a real password in this README or commit it to GitHub.
+
 ## Project structure
 
 - `easycart-frontend/` - React/Vite website
