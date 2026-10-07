@@ -70,6 +70,27 @@ public class RazorpayPaymentService {
         }
     }
 
+    public Refund refundPayment(String paymentId, long amountPaise) {
+        requireConfigured();
+        if (paymentId == null || paymentId.isBlank() || amountPaise < 1) throw new ResponseStatusException(HttpStatus.CONFLICT, "This payment cannot be refunded automatically.");
+        try {
+            String body = mapper.writeValueAsString(Map.of("amount", amountPaise));
+            String credentials = Base64.getEncoder().encodeToString((keyId + ":" + keySecret).getBytes(StandardCharsets.UTF_8));
+            HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.razorpay.com/v1/payments/" + paymentId + "/refund"))
+                    .timeout(java.time.Duration.ofSeconds(20)).header("Authorization", "Basic " + credentials)
+                    .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build();
+            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            JsonNode json = mapper.readTree(response.body());
+            if (response.statusCode() < 200 || response.statusCode() >= 300 || json.path("id").asText().isBlank())
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Razorpay could not accept the refund. The order was not cancelled.");
+            return new Refund(json.path("id").asText(), json.path("status").asText("pending"));
+        } catch (ResponseStatusException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Refund service is temporarily unavailable. The order was not cancelled.");
+        }
+    }
+
     public boolean isCapturedPayment(String paymentId, String orderId, long amountPaise) {
         requireConfigured();
         try {
@@ -96,4 +117,5 @@ public class RazorpayPaymentService {
     }
 
     public record RazorpayOrder(String id, long amount, String currency) {}
+    public record Refund(String id, String status) {}
 }

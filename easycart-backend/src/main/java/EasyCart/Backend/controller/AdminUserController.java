@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/users")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${APP_FRONTEND_ORIGIN:http://localhost:5173}")
 public class AdminUserController {
     private final UserRepository users;
     private final PasswordEncoder encoder;

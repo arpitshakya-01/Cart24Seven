@@ -1,65 +1,43 @@
 package EasyCart.Backend.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "orders")
 public class Order {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String customerName;
     private String phone;
-    @Column(length = 500)
     private String address;
     private String city;
     private String state;
     private String pincode;
     private String productName;
-    @Column(length = 2048)
     private String productImage;
     private Double productPrice;
-    @Column(name = "product_cost_price")
     private Double productCostPrice;
     private Double productOperatingCost;
     private Double productPlatformFeePercent;
     private Integer quantity;
     private Double subtotal;
     private Double gst;
-    @Column(name = "taxable_value")
     private Double taxableValue;
-    @Column(name = "gst_rate")
     private Double gstRate;
     private Double cgst;
     private Double sgst;
     private Double igst;
-    @Column(name = "hsn_code", length = 20)
     private String hsnCode;
-    @Column(name = "seller_state")
     private String sellerState;
-    @Column(name = "seller_gstin", length = 15)
     private String sellerGstin;
-    @Column(name = "marketplace_commission")
     private Double marketplaceCommission;
-    @Column(name = "commission_gst")
     private Double commissionGst;
     private Double tcs;
-    @Column(name = "tcs_cgst")
     private Double tcsCgst;
-    @Column(name = "tcs_sgst")
     private Double tcsSgst;
-    @Column(name = "tcs_igst")
     private Double tcsIgst;
-    @Column(name = "net_seller_payout")
     private Double netSellerPayout;
     private Double deliveryCharge;
     private Double totalAmount;
     private String orderStatus;
     private LocalDateTime orderDate;
-    @Column(name = "buyer_email")
     private String buyerEmail;
-    @Column(name = "seller_email")
     private String sellerEmail;
     private Long productId;
     private String paymentMethod;
@@ -150,3 +128,4 @@ public class Order {
     public String getPaymentReference() { return paymentReference; }
     public void setPaymentReference(String value) { this.paymentReference = value; }
 }
+

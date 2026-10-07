@@ -11,7 +11,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/buyer/profile")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${APP_FRONTEND_ORIGIN:http://localhost:5173}")
 public class BuyerProfileController {
     private final UserRepository users;
     public BuyerProfileController(UserRepository users) { this.users = users; }

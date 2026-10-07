@@ -9,6 +9,8 @@ public class ProductResponse {
     private String brand;
     private String description;
     private String imageUrl;
+    private java.util.List<EasyCart.Backend.entity.ProductMedia> media;
+    private Integer reviewCount;
     private Double price;
     private Double basePrice;
     private Double gstRate;
@@ -27,6 +29,8 @@ public class ProductResponse {
         this.brand = product.getBrand();
         this.description = product.getDescription();
         this.imageUrl = product.getImageUrl();
+        this.media = product.getMedia();
+        this.reviewCount = product.getReviewCount();
         this.price = product.getPrice();
         this.basePrice = product.getBasePrice();
         this.gstRate = product.getGstRate() == null ? 18.0 : product.getGstRate();
@@ -45,6 +49,8 @@ public class ProductResponse {
     public String getBrand() { return brand; }
     public String getDescription() { return description; }
     public String getImageUrl() { return imageUrl; }
+    public java.util.List<EasyCart.Backend.entity.ProductMedia> getMedia() { return media; }
+    public Integer getReviewCount() { return reviewCount; }
     public Double getPrice() { return price; }
     public Double getBasePrice() { return basePrice; }
     public Double getGstRate() { return gstRate; }

@@ -18,7 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/cart")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${APP_FRONTEND_ORIGIN:http://localhost:5173}")
 public class CartController {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
@@ -45,9 +45,9 @@ public class CartController {
         CartItem item = cartItemRepository.findByCart_IdAndProduct_Id(cart.getId(), product.getId()).orElse(null);
         int quantity = (item == null ? 0 : item.getQuantity()) + request.quantity();
         ensureStock(product, quantity);
-        if (item == null) cart.getItems().add(new CartItem(cart, product, quantity));
-        else item.setQuantity(quantity);
-        return response(cartRepository.save(cart));
+        if (item == null) cartItemRepository.save(new CartItem(cart, product, quantity));
+        else { item.setQuantity(quantity); cartItemRepository.save(item); }
+        return response(cart);
     }
 
     @PutMapping("/items/{productId}")
@@ -58,7 +58,8 @@ public class CartController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Item is not in this cart."));
         ensureStock(item.getProduct(), request.quantity());
         item.setQuantity(request.quantity());
-        return response(cartRepository.save(cart));
+        cartItemRepository.save(item);
+        return response(cart);
     }
 
     @DeleteMapping("/items/{productId}")
@@ -67,18 +68,17 @@ public class CartController {
         Cart cart = getOrCreateCart(auth.getName());
         CartItem item = cartItemRepository.findByCart_IdAndProduct_Id(cart.getId(), productId).orElse(null);
         if (item != null) {
-            cart.getItems().remove(item);
             cartItemRepository.delete(item);
         }
-        return response(cartRepository.save(cart));
+        return response(cart);
     }
 
     @DeleteMapping
     @Transactional
     public CartResponse clearCart(Authentication auth) {
         Cart cart = getOrCreateCart(auth.getName());
-        cart.getItems().clear();
-        return response(cartRepository.save(cart));
+        cartItemRepository.deleteByCart_Id(cart.getId());
+        return response(cart);
     }
 
     private Cart getOrCreateCart(String email) {
@@ -108,4 +108,7 @@ public class CartController {
                            Double price, Double mrp, Double rating, Integer stock, Integer discount, String category, Integer quantity,
                            Double gstRate, String hsnCode) {}
 }
+
+
+
 

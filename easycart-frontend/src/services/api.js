@@ -1,9 +1,16 @@
 import axios from "axios";
 
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8080/api").replace(/\/+$/, "");
+const configuredApiUrl = (import.meta.env.VITE_API_URL || "").trim().replace(/\/+$/, "");
+const useLocalBackend = import.meta.env.DEV && !configuredApiUrl;
+export const API_BASE_URL = configuredApiUrl
+    ? (configuredApiUrl.endsWith("/api") ? configuredApiUrl : `${configuredApiUrl}/api`)
+    : (useLocalBackend ? "http://localhost:8080/api" : "");
 const api = axios.create({ baseURL: API_BASE_URL, timeout: 20000 });
 
 api.interceptors.request.use((config) => {
+    if (!API_BASE_URL) {
+        return Promise.reject(new Error("The backend URL is not configured. Set VITE_API_URL in the frontend hosting settings."));
+    }
     const token = localStorage.getItem("token");
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;

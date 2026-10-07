@@ -15,7 +15,10 @@ public class FileUploadService {
     private String uploadDir;
 
     public String uploadFile(MultipartFile file) {
-
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("Choose a file to upload.");
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        if (!(contentType.startsWith("image/") || contentType.equals("video/mp4") || contentType.equals("video/webm") || contentType.equals("video/quicktime")))
+            throw new IllegalArgumentException("Upload an image or MP4, WebM, or MOV video.");
         try {
             // Create uploads folder if it doesn't exist
             Path uploadPath = Paths.get(uploadDir);

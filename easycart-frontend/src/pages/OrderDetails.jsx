@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
-    ArrowLeft, Check, ChevronDown, ChevronUp, Download, MapPin, MessageCircle,
+    ArrowLeft, Check, ChevronDown, ChevronUp, Download, MapPin, MessageCircle, XCircle,
     Package, Phone, RotateCcw, ShieldCheck, Star
 } from "lucide-react";
-import { getMyOrders } from "../services/orderService";
+import { cancelMyOrder, getMyOrders, getOrderReview, saveOrderReview } from "../services/orderService";
+import { submitProductReview } from "../services/productService";
 import { resolveProductImage } from "../services/resolveProductImage";
 import fallbackImage from "../assets/lenovo-loq-rtx5050.png";
 import { useToast } from "../context/ToastContext";
@@ -25,9 +26,12 @@ function OrderDetails() {
     const [showUpdates, setShowUpdates] = useState(true);
     const [showDelivery, setShowDelivery] = useState(true);
     const [showPrice, setShowPrice] = useState(true);
-    const storageKey = `easycart-order-rating-${id}`;
-    const [rating, setRating] = useState(() => Number(localStorage.getItem(storageKey) || 0));
-    const [feedback, setFeedback] = useState(() => localStorage.getItem(`${storageKey}-delivery`) || "");
+    const [rating, setRating] = useState(0);
+    const [feedback, setFeedback] = useState("");
+    const [reviewText, setReviewText] = useState("");
+    const [reviewSaving, setReviewSaving] = useState(false);
+    const [reviewSaved, setReviewSaved] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -35,7 +39,7 @@ function OrderDetails() {
             .then((items) => {
                 if (active) {
                     const found = items.find((item) => String(item.id) === String(id));
-                    if (found) setOrder(found);
+                    if (found) { setOrder(found); getOrderReview(id).then((review) => { if (!active || !review) return; setRating(review.rating || 0); setFeedback(review.deliveryFeedback || ""); setReviewText(review.comment || ""); }).catch(() => {}); }
                     else setError("This order could not be found in your account.");
                 }
             })
@@ -74,6 +78,24 @@ function OrderDetails() {
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
 
+    const cancelOrder = async () => {
+        const refundNote = order.paymentStatus === "PAID" && order.paymentMethod === "RAZORPAY" ? " A refund will be requested from Razorpay." : "";
+        if (!window.confirm(`Cancel order #${order.id}?${refundNote}`)) return;
+        setCancelling(true);
+        try { const saved = await cancelMyOrder(order.id); setOrder(saved); toast(saved.paymentStatus === "REFUND_PENDING" ? "Order cancelled. Your refund is being processed." : "Order cancelled successfully.", "success"); }
+        catch (cancelError) { toast(cancelError.response?.data?.message || "This order could not be cancelled.", "error"); }
+        finally { setCancelling(false); }
+    };
+    const saveReview = async () => {
+        if (!rating) { toast("Choose a star rating first.", "error"); return; }
+        setReviewSaving(true); setReviewSaved(false);
+        try {
+            await saveOrderReview(id, { rating, comment: reviewText, deliveryFeedback: feedback || null });
+            if (order?.productId) await submitProductReview(order.productId, { orderId: Number(id), rating, comment: reviewText });
+            setReviewSaved(true); toast("Your order and product review were saved.", "success");
+        } catch (reviewError) { toast(reviewError.response?.data?.message || "Your review could not be saved.", "error"); }
+        finally { setReviewSaving(false); }
+    };
     const emailSeller = (subject, body) => {
         if (!order?.sellerEmail) return;
         window.location.href = `mailto:${encodeURIComponent(order.sellerEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -100,9 +122,10 @@ function OrderDetails() {
 
                     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div className="flex flex-col gap-4 sm:flex-row"><img src={resolveProductImage(order.productImage) || fallbackImage} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = fallbackImage; }} alt={order.productName || "Ordered product"} className="h-28 w-28 shrink-0 rounded-xl border border-slate-200 bg-white object-contain p-2"/><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold text-slate-900">{order.productName || "Product"}</h2><p className="mt-1 text-slate-600">Quantity: {order.quantity} · {money(order.productPrice)} each</p></div><p className="font-bold text-slate-900">{money(amounts.total)}</p></div><div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm">Payment: {paymentLabel(order.paymentMethod)}</span><span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${order.paymentStatus === "PAID" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{order.paymentStatus || "Status unavailable"}</span></div></div></div></section>
 
+                    {(["Placed", "Processing"].includes(status)) && <section className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="font-bold text-slate-900">Need to cancel this order?</h2><p className="mt-1 text-sm text-slate-600">You can cancel before it ships. Eligible online payments will be refunded through Razorpay.</p><button type="button" disabled={cancelling} onClick={cancelOrder} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-3 font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-60"><XCircle size={18}/>{cancelling ? "Cancelling…" : "Cancel order"}</button></section>}
                     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="mb-4 text-lg font-bold text-slate-900">Need help with your order?</h2><div className="grid gap-3 sm:grid-cols-2"><button type="button" disabled={!order.sellerEmail || status === "Cancelled"} onClick={() => emailSeller(`Help with order #${order.id}`, `Hello, I need help with order #${order.id} (${order.productName}).`)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"><MessageCircle size={18}/>Contact seller</button><button type="button" disabled={status !== "Delivered" || !order.sellerEmail} onClick={() => emailSeller(`Return request for order #${order.id}`, `Hello, I would like to request a return for order #${order.id} (${order.productName}). Please share the next steps.`)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"><RotateCcw size={18}/>Request return</button></div><p className="mt-3 text-xs text-slate-500">{!order.sellerEmail ? "Seller contact details are not available for this order." : status !== "Delivered" ? "Return requests become available after delivery. Contact seller opens your email app." : "Contact and return requests open your email app with the order details filled in."}</p></section>
 
-                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="mb-1 text-lg font-bold text-slate-900">Rate your experience</h2><p className="text-sm text-slate-500">Your rating is saved in this browser for this order.</p><div className="mt-3 flex items-center gap-1" aria-label="Rate product from one to five stars">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" aria-label={`Rate ${value} out of 5`} onClick={() => { setRating(value); localStorage.setItem(storageKey, String(value)); toast("Thanks — your rating was saved in this browser.", "success"); }} className="rounded p-1 focus:outline-none focus:ring-2 focus:ring-amber-400"><Star size={28} className={value <= rating ? "fill-amber-400 text-amber-500" : "text-slate-400"}/></button>)}{rating > 0 && <span className="ml-2 text-sm text-slate-600">Your rating: {rating}/5</span>}</div><div className="mt-5 border-t border-slate-100 pt-4"><label htmlFor="delivery-feedback" className="font-semibold text-slate-800">How was your delivery experience?</label><select id="delivery-feedback" value={feedback} onChange={(event) => { setFeedback(event.target.value); localStorage.setItem(`${storageKey}-delivery`, event.target.value); toast("Delivery feedback saved.", "success"); }} className="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3"><option value="">Choose an option</option><option value="great">Great</option><option value="okay">Okay</option><option value="needs-improvement">Needs improvement</option></select></div></section>
+                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><h2 className="mb-1 text-lg font-bold text-slate-900">Review your order and product</h2><p className="text-sm text-slate-500">Reviews are available after delivery and saved to your account.</p>{status === "Delivered" ? <><div className="mt-3 flex items-center gap-1" aria-label="Rate product from one to five stars">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" aria-label={`Rate ${value} out of 5`} onClick={() => setRating(value)} className="rounded p-1 focus:outline-none focus:ring-2 focus:ring-amber-400"><Star size={28} className={value <= rating ? "fill-amber-400 text-amber-500" : "text-slate-400"}/></button>)}{rating > 0 && <span className="ml-2 text-sm text-slate-600">{rating}/5</span>}</div><label className="mt-4 block font-semibold text-slate-800">Your review<textarea value={reviewText} onChange={(event)=>setReviewText(event.target.value)} maxLength={1000} rows={3} placeholder="Share what you think about the product and order" className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 font-normal"/></label><div className="mt-4 border-t border-slate-100 pt-4"><label htmlFor="delivery-feedback" className="font-semibold text-slate-800">How was your delivery experience?</label><select id="delivery-feedback" value={feedback} onChange={(event) => setFeedback(event.target.value)} className="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3 py-3"><option value="">Choose an option</option><option value="great">Great</option><option value="okay">Okay</option><option value="needs-improvement">Needs improvement</option></select></div><button type="button" disabled={!rating || reviewSaving} onClick={saveReview} className="mt-4 rounded-xl bg-[#FFD21F] px-5 py-3 font-bold text-[#111] disabled:opacity-50">{reviewSaving ? "Saving…" : reviewSaved ? "Update review" : "Submit review"}</button></> : <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">You can leave a review once this order is marked Delivered.</p>}</section>
                 </div>
 
                 <aside className="space-y-4 lg:sticky lg:top-5">

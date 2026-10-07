@@ -1,31 +1,21 @@
 package EasyCart.Backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
-
-@Entity
-@Table(name = "products")
+import java.util.ArrayList;
+import java.util.List;
 public class Product {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false)
     private String productName;
     private String brand;
-    @Column(length = 1000)
     private String description;
-    @Column(length = 2048)
     private String imageUrl;
+    private List<ProductMedia> media = new ArrayList<>();
+    private Integer reviewCount = 0;
     private Double price;
     /** Taxable selling value before GST. price is the all-inclusive buyer price. */
-    @Column(name = "base_price")
     private Double basePrice;
-    @Column(name = "gst_rate")
     private Double gstRate = 18.0;
-    @Column(name = "hsn_code", length = 20)
     private String hsnCode;
-    @Column(name = "hsn_verified", nullable = false)
     private boolean hsnVerified = false;
     private Double mrp;
     private Double costPrice;
@@ -35,12 +25,7 @@ public class Product {
     private Double rating;
     private Integer stock;
     private Integer discount;
-    @Column(name = "seller_email")
     private String sellerEmail;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "category_id")
-    @JsonIgnoreProperties("products")
     private Category category;
 
     public Product() {}
@@ -52,6 +37,10 @@ public class Product {
     public void setBrand(String brand) { this.brand = brand; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public List<ProductMedia> getMedia() { return media; }
+    public void setMedia(List<ProductMedia> media) { this.media = media == null ? new ArrayList<>() : media; }
+    public Integer getReviewCount() { return reviewCount; }
+    public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public Double getPrice() { return price; }
@@ -85,3 +74,4 @@ public class Product {
     public Category getCategory() { return category; }
     public void setCategory(Category category) { this.category = category; }
 }
+

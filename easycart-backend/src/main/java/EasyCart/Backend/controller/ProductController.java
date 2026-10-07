@@ -3,6 +3,7 @@ package EasyCart.Backend.controller;
 import EasyCart.Backend.dto.ProductResponse;
 import EasyCart.Backend.entity.Category;
 import EasyCart.Backend.entity.Product;
+import EasyCart.Backend.entity.ProductMedia;
 import EasyCart.Backend.repository.CategoryRepository;
 import EasyCart.Backend.repository.ProductRepository;
 import EasyCart.Backend.repository.UserRepository;
@@ -18,7 +19,7 @@ import java.net.URI;
 
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${APP_FRONTEND_ORIGIN:http://localhost:5173}")
 public class ProductController {
     private final ProductService productService;
     private final ProductRepository productRepository;
@@ -60,6 +61,7 @@ public class ProductController {
     public ResponseEntity<ProductResponse> addProduct(@RequestBody Product product, Authentication authentication) {
         applyPricing(product);
         product.setImageUrl(normalizeImageUrl(product.getImageUrl()));
+        product.setMedia(normalizeMedia(product.getMedia()));
         if (hasRole(authentication, "SELLER")) {
             requireSellerTaxProfile(authentication);
             product.setSellerEmail(authentication.getName());
@@ -76,6 +78,7 @@ public class ProductController {
         requireOwnerOrAdmin(existing, authentication);
         applyPricing(updated);
         updated.setImageUrl(normalizeImageUrl(updated.getImageUrl()));
+        updated.setMedia(normalizeMedia(updated.getMedia()));
         if (!java.util.Objects.equals(existing.getHsnCode(), updated.getHsnCode())) existing.setHsnVerified(false);
         if (hasRole(authentication, "SELLER")) {
             requireSellerTaxProfile(authentication);
@@ -150,6 +153,17 @@ public class ProductController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Seller account could not be found."));
         if (!"VERIFIED".equalsIgnoreCase(seller.getGstinStatus()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Submit your GSTIN and business state, then wait for admin verification before creating taxable listings.");
+    }
+
+    private List<ProductMedia> normalizeMedia(List<ProductMedia> media) {
+        if (media == null) return List.of();
+        if (media.size() > 20) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A product can have up to 20 media files.");
+        return media.stream().map(item -> {
+            if (item == null || item.getUrl() == null || item.getUrl().isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Each media file needs a URL.");
+            String type = item.getType() == null ? "IMAGE" : item.getType().toUpperCase();
+            if (!type.equals("IMAGE") && !type.equals("VIDEO")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Media type must be IMAGE or VIDEO.");
+            ProductMedia normalized = new ProductMedia(); normalized.setUrl(normalizeImageUrl(item.getUrl())); normalized.setType(type); return normalized;
+        }).toList();
     }
 
     private String normalizeImageUrl(String value) {

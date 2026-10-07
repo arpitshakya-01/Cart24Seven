@@ -31,7 +31,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/orders")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${APP_FRONTEND_ORIGIN:http://localhost:5173}")
 public class OrderController {
     private final OrderRepository orderRepository;
     private final CartRepository cartRepository;
@@ -168,6 +168,31 @@ public class OrderController {
         List<Order> orders = orderRepository.findByBuyerEmailOrderByOrderDateDesc(auth.getName());
         orders.forEach(this::hideSellerPricing);
         return orders;
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Transactional
+    public Order cancelBuyerOrder(@PathVariable Long id, Authentication auth) {
+        Order order = orderRepository.findByIdForBuyerUpdate(id, auth.getName())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found in your account."));
+        if ("Cancelled".equalsIgnoreCase(order.getOrderStatus())) { hideSellerPricing(order); return order; }
+        if (!List.of("Placed", "Processing").contains(order.getOrderStatus()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This order can no longer be cancelled. Contact the seller for help.");
+        if ("PAID".equalsIgnoreCase(order.getPaymentStatus())) {
+            if ("RAZORPAY".equalsIgnoreCase(order.getPaymentMethod())) {
+                long amountPaise = BigDecimal.valueOf(valueOrZero(order.getTotalAmount())).movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
+                RazorpayPaymentService.Refund refund = razorpay.refundPayment(order.getPaymentReference(), amountPaise);
+                order.setPaymentStatus("processed".equalsIgnoreCase(refund.status()) ? "REFUNDED" : "REFUND_PENDING");
+            } else if (order.getPaymentMethod() != null && order.getPaymentMethod().startsWith("DEMO_")) {
+                order.setPaymentStatus("REFUNDED");
+            } else {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "This paid order needs a refund review. Contact support to cancel it.");
+            }
+        }
+        order.setOrderStatus("Cancelled");
+        Order saved = orderRepository.save(order);
+        hideSellerPricing(saved);
+        return saved;
     }
 
     @GetMapping("/seller/orders")

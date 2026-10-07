@@ -1,42 +1,22 @@
 package EasyCart.Backend.entity;
 
-import jakarta.persistence.*;
 import java.util.Locale;
-
-@Entity
-@Table(name = "users")
 public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(nullable = false, length = 120)
     private String name;
-    @Column(nullable = false, unique = true, length = 254)
     private String email;
-    @Column(nullable = false)
     private String password;
-    @Column(nullable = false, length = 16)
     private String role = Role.BUYER.name();
     private String phone;
-    @Column(length = 500)
     private String addressLine;
     private String city;
     private String state;
     private String pincode;
     private String paymentPreference;
-    @Column(length = 15)
     private String gstin;
-    @Column(name = "gstin_status", length = 24, nullable = false)
     private String gstinStatus = "NOT_SUBMITTED";
 
     public User() {}
-    @PrePersist
-    @PreUpdate
-    private void normalizeIdentity() {
-        if (name != null) name = name.trim();
-        if (email != null) email = email.trim().toLowerCase(Locale.ROOT);
-        role = Role.from(role).name();
-    }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
@@ -64,3 +44,4 @@ public class User {
     public String getGstinStatus() { return gstinStatus; }
     public void setGstinStatus(String gstinStatus) { this.gstinStatus = gstinStatus == null ? "NOT_SUBMITTED" : gstinStatus.trim().toUpperCase(Locale.ROOT); }
 }
+
