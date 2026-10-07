@@ -95,6 +95,8 @@ $env:CART24SEVEN_ADMIN_NAME = "Site Administrator"
 
 Choose a password of at least 8 characters. While these bootstrap variables are set, the configured password is applied again each time the backend starts. After the admin account has been created, remove or clear the bootstrap email and password if you do not want startup to reset that account's password. Do not write the real password into this README or commit it to GitHub.
 
+The account whose email matches CART24SEVEN_ADMIN_EMAIL is the protected primary admin. The admin user API rejects attempts to edit, demote, or delete it, and the admin screen disables those controls. Change its configured details through the Render backend environment. If the bootstrap email is blank, all existing ADMIN accounts are protected from user-management changes as a fail-safe.
+
 For the live Render deployment, enter database and admin values in the Render backend service's Environment settings. Never put production passwords in this repository. Razorpay is optional; without its keys, Razorpay checkout is unavailable. Demo payment behavior is controlled by `CART24SEVEN_DEMO_PAYMENTS_ENABLED`.
 
 ### 5. Start the backend
