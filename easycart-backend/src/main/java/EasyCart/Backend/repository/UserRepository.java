@@ -17,6 +17,7 @@ public class UserRepository {
     public UserRepository(JdbcRepositorySupport jdbc) { this.jdbc = jdbc; }
 
     public User save(User user) {
+        user = user.asRoleType();
         user.setName(user.getName() == null ? null : user.getName().trim());
         user.setEmail(user.getEmail() == null ? null : user.getEmail().trim().toLowerCase(java.util.Locale.ROOT));
         user.setRole(Role.from(user.getRole()).name());
@@ -50,7 +51,7 @@ public class UserRepository {
     public void delete(User user) { jdbc.update("DELETE FROM users WHERE id=?", user.getId()); }
 
     private User map(ResultSet row) throws SQLException {
-        User user = new User();
+        User user = User.forRole(Role.from(row.getString("role")));
         user.setId(row.getLong("id"));
         user.setName(row.getString("name"));
         user.setEmail(row.getString("email"));

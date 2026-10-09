@@ -8,6 +8,7 @@ import EasyCart.Backend.repository.CategoryRepository;
 import EasyCart.Backend.repository.ProductRepository;
 import EasyCart.Backend.repository.UserRepository;
 import EasyCart.Backend.service.ProductService;
+import EasyCart.Backend.utils.ProductPricing;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

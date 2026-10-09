@@ -58,6 +58,22 @@ public class JdbcRepositorySupport {
         }
     }
 
+    public int[] batchUpdate(String sql, List<Object[]> rows) {
+        if (rows == null || rows.isEmpty()) return new int[0];
+        Connection connection = DataSourceUtils.getConnection(dataSource);
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (Object[] values : rows) {
+                bind(statement, values);
+                statement.addBatch();
+            }
+            return statement.executeBatch();
+        } catch (SQLException exception) {
+            throw failure("batch update database", exception);
+        } finally {
+            DataSourceUtils.releaseConnection(connection, dataSource);
+        }
+    }
+
     public long insert(String sql, Object... values) {
         Connection connection = DataSourceUtils.getConnection(dataSource);
         try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {

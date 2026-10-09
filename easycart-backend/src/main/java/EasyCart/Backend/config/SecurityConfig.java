@@ -67,6 +67,7 @@ public class SecurityConfig {
                 }))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/servlet/health").permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/register", "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/reviews/products/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/upload/**").hasAnyRole("ADMIN", "SELLER")

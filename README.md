@@ -2,6 +2,10 @@
 
 Cart24Seven is a full-stack marketplace where buyers browse and order products, sellers manage products and orders, and administrators manage the marketplace.
 
+### Problem statement
+
+Small sellers often lack an affordable place to publish products and manage orders, while buyers need one place to discover products, compare details, keep a cart, and track purchases. Cart24Seven brings those tasks together in a role-based marketplace: buyers shop and review orders, sellers maintain listings and fulfill orders, and administrators oversee accounts, catalog approval, and seller verification.
+
 ## Features
 
 - Buyer, seller, and admin accounts with role-based access
@@ -39,6 +43,78 @@ For the live admin account, set or update `CART24SEVEN_ADMIN_PASSWORD` in the Re
 - `easycart-backend/uploads/` and `uploads/` - bundled and uploaded media
 - `render.yaml` - Render frontend and API service configuration
 - `PROJECT_STRUCTURE.md` - expanded folder and file chart
+
+## Database model
+
+The backend uses MySQL tables for accounts, catalog, carts, orders, reviews, and payment attempts. The diagram shows the core relationships; buyer and seller email fields in orders are stored as order snapshots rather than foreign keys.
+
+```mermaid
+erDiagram
+    USERS ||--o{ PRODUCTS : lists
+    CATEGORIES ||--o{ PRODUCTS : groups
+    PRODUCTS ||--o{ PRODUCT_MEDIA : has
+    USERS ||--o| CARTS : owns
+    CARTS ||--o{ CART_ITEMS : contains
+    PRODUCTS ||--o{ CART_ITEMS : selected
+    USERS ||--o{ ORDERS : places
+    PRODUCTS ||--o{ ORDERS : ordered_as
+    ORDERS ||--o| ORDER_REVIEWS : receives
+    PRODUCTS ||--o{ PRODUCT_REVIEWS : receives
+    ORDERS ||--o| PRODUCT_REVIEWS : supports
+    USERS {
+        bigint id PK
+        string email UK
+        string role
+    }
+    CATEGORIES {
+        bigint id PK
+        string category_name UK
+    }
+    PRODUCTS {
+        bigint id PK
+        bigint category_id FK
+        string seller_email
+        int stock
+    }
+    PRODUCT_MEDIA {
+        bigint id PK
+        bigint product_id FK
+    }
+    CARTS {
+        bigint id PK
+        string buyer_email UK
+    }
+    CART_ITEMS {
+        bigint id PK
+        bigint cart_id FK
+        bigint product_id FK
+        int quantity
+    }
+    ORDERS {
+        bigint id PK
+        bigint product_id FK
+        string buyer_email
+        string seller_email
+        int quantity
+    }
+    ORDER_REVIEWS {
+        bigint id PK
+        bigint order_id UK
+    }
+    PRODUCT_REVIEWS {
+        bigint id PK
+        bigint product_id FK
+        bigint order_id UK
+    }
+```
+
+## Java web request flow
+
+The Spring web application runs on the servlet stack. Requests pass through the security filter chain and Spring's `DispatcherServlet` before reaching a REST controller, service, repository, and JDBC. The standalone servlet endpoint at `/servlet/health` returns a small JSON health response and demonstrates `HttpServlet`, `doGet`, and the Servlet API directly.
+
+```text
+Browser -> Security filter chain -> DispatcherServlet -> Controller -> Service -> JDBC repository -> MySQL
+```
 
 ## Run the project locally
 

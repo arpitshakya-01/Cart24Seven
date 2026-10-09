@@ -49,7 +49,7 @@ public class AdminUserController {
         if (users.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists.");
         }
-        User user = new User();
+        User user = User.forRole(EasyCart.Backend.entity.Role.from(role(body.get("role"))));
         user.setName(name.trim());
         user.setEmail(email);
         user.setPassword(encoder.encode(password));
@@ -152,16 +152,17 @@ public class AdminUserController {
     }
 
     private Map<String, Object> summary(User user) {
-        return Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "role", user.getRole() == null ? "BUYER" : user.getRole(),
-                "gstin", user.getGstin() == null ? "" : user.getGstin(),
-                "gstinStatus", user.getGstinStatus() == null ? "NOT_SUBMITTED" : user.getGstinStatus(),
-                "state", user.getState() == null ? "" : user.getState(),
-                "primaryAdmin", isPrimaryAdmin(user),
-                "protectedAdmin", isProtectedAdmin(user),
-                "primaryAdminEmailConfigured", primaryAdminEmail != null && !primaryAdminEmail.isBlank());
+        return Map.ofEntries(
+                Map.entry("id", user.getId()),
+                Map.entry("name", user.getName()),
+                Map.entry("email", user.getEmail()),
+                Map.entry("role", user.getRole() == null ? "BUYER" : user.getRole()),
+                Map.entry("dashboardPath", user.getDashboardPath()),
+                Map.entry("gstin", user.getGstin() == null ? "" : user.getGstin()),
+                Map.entry("gstinStatus", user.getGstinStatus() == null ? "NOT_SUBMITTED" : user.getGstinStatus()),
+                Map.entry("state", user.getState() == null ? "" : user.getState()),
+                Map.entry("primaryAdmin", isPrimaryAdmin(user)),
+                Map.entry("protectedAdmin", isProtectedAdmin(user)),
+                Map.entry("primaryAdminEmailConfigured", primaryAdminEmail != null && !primaryAdminEmail.isBlank()));
     }
 }

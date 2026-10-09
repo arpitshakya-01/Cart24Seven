@@ -1,18 +1,13 @@
 package EasyCart.Backend.controller;
 
-import EasyCart.Backend.entity.Cart;
-import EasyCart.Backend.entity.CartItem;
 import EasyCart.Backend.entity.Order;
 import EasyCart.Backend.entity.PaymentAttempt;
-import EasyCart.Backend.entity.Product;
-import EasyCart.Backend.entity.User;
-import EasyCart.Backend.repository.CartItemRepository;
-import EasyCart.Backend.repository.CartRepository;
 import EasyCart.Backend.repository.OrderRepository;
 import EasyCart.Backend.repository.PaymentAttemptRepository;
-import EasyCart.Backend.repository.UserRepository;
+import EasyCart.Backend.dto.DeliveryAddress;
+import EasyCart.Backend.service.OrderService;
 import EasyCart.Backend.service.RazorpayPaymentService;
-import EasyCart.Backend.utils.DeliveryChargeCalculator;
+import EasyCart.Backend.service.StockService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,33 +29,31 @@ import java.util.UUID;
 @CrossOrigin(origins = "${APP_FRONTEND_ORIGIN:http://localhost:5173}")
 public class OrderController {
     private final OrderRepository orderRepository;
-    private final CartRepository cartRepository;
-    private final CartItemRepository cartItemRepository;
     private final PaymentAttemptRepository paymentAttempts;
     private final RazorpayPaymentService razorpay;
-    private final UserRepository users;
+    private final OrderService orderService;
+    private final StockService stock;
     private final ObjectMapper mapper;
     @Value("${app.payment.demo.enabled:false}") private boolean demoPaymentsEnabled;
 
-    public OrderController(OrderRepository orderRepository, CartRepository cartRepository,
-                           CartItemRepository cartItemRepository, PaymentAttemptRepository paymentAttempts,
-                           RazorpayPaymentService razorpay, ObjectMapper mapper, UserRepository users) {
+    public OrderController(OrderRepository orderRepository, PaymentAttemptRepository paymentAttempts,
+                           RazorpayPaymentService razorpay, ObjectMapper mapper, OrderService orderService,
+                           StockService stock) {
         this.orderRepository = orderRepository;
-        this.cartRepository = cartRepository;
-        this.cartItemRepository = cartItemRepository;
         this.paymentAttempts = paymentAttempts;
         this.razorpay = razorpay;
         this.mapper = mapper;
-        this.users = users;
+        this.orderService = orderService;
+        this.stock = stock;
     }
 
     @PostMapping("/place")
     @Transactional
     public List<Order> placeCashOnDelivery(@RequestBody DeliveryAddress address, Authentication auth) {
-        validateAddress(address);
-        List<Order> orders = buildOrders(address, auth.getName(), "COD", "UNPAID");
+        List<Order> orders = orderService.createOrders(address, auth.getName(), "COD", "UNPAID");
+        reserveStockOrFail(orders);
         List<Order> saved = orderRepository.saveAll(orders);
-        clearCart(auth.getName());
+        orderService.clearCart(auth.getName());
         saved.forEach(this::hideSellerPricing);
         return saved;
     }
@@ -78,12 +71,12 @@ public class OrderController {
                 || !List.of("UPI", "DEBIT_CARD", "CREDIT_CARD", "NET_BANKING").contains(request.method()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a supported demo payment method.");
         DeliveryAddress address = request.address();
-        validateAddress(address);
-        List<Order> orders = buildOrders(address, auth.getName(), "DEMO_" + request.method(), "SIMULATED");
+        List<Order> orders = orderService.createOrders(address, auth.getName(), "DEMO_" + request.method(), "SIMULATED");
+        reserveStockOrFail(orders);
         String demoReference = "DEMO-" + UUID.randomUUID().toString().substring(0, 8);
         orders.forEach(order -> order.setPaymentReference(demoReference));
         List<Order> saved = orderRepository.saveAll(orders);
-        clearCart(auth.getName());
+        orderService.clearCart(auth.getName());
         saved.forEach(this::hideSellerPricing);
         return saved;
     }
@@ -91,8 +84,7 @@ public class OrderController {
     @PostMapping("/payment/create-order")
     @Transactional
     public CreatePaymentResponse createPaymentOrder(@RequestBody DeliveryAddress address, Authentication auth) {
-        validateAddress(address);
-        List<Order> drafts = buildOrders(address, auth.getName(), "RAZORPAY", "PENDING");
+        List<Order> drafts = orderService.createOrders(address, auth.getName(), "RAZORPAY", "PENDING");
         long amountPaise = BigDecimal.valueOf(drafts.stream().mapToDouble(o -> o.getTotalAmount()).sum())
                 .setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact();
         RazorpayPaymentService.RazorpayOrder remote = razorpay.createOrder(amountPaise);
@@ -125,6 +117,11 @@ public class OrderController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment verification failed. No order was placed.");
         try {
             List<Order> paidOrders = mapper.readerForListOf(Order.class).readValue(attempt.getOrderSnapshot());
+            if (!reserveStock(paidOrders)) {
+                razorpay.refundPayment(request.razorpayPaymentId(), attempt.getAmountPaise());
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Stock changed while payment was pending. The captured payment has been refunded.");
+            }
             paidOrders.forEach(order -> {
                 order.setPaymentMethod("RAZORPAY"); order.setPaymentStatus("PAID");
                 order.setPaymentReference(request.razorpayPaymentId()); order.setOrderStatus("Placed");
@@ -144,11 +141,13 @@ public class OrderController {
                 }
             });
             orderRepository.saveAll(paidOrders);
+        } catch (ResponseStatusException ex) {
+            throw ex;
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not finalize the verified order.");
         }
         attempt.setStatus("PAID"); attempt.setPaymentId(request.razorpayPaymentId()); paymentAttempts.save(attempt);
-        clearCart(auth.getName());
+        orderService.clearCart(auth.getName());
         return Map.of("verified", true, "paymentId", request.razorpayPaymentId());
     }
 
@@ -191,6 +190,7 @@ public class OrderController {
         }
         order.setOrderStatus("Cancelled");
         Order saved = orderRepository.save(order);
+        releaseStock(order);
         hideSellerPricing(saved);
         return saved;
     }
@@ -220,109 +220,56 @@ public class OrderController {
     }
 
     @PatchMapping("/seller/{id}/status")
+    @Transactional
     public Order updateSellerOrderStatus(@PathVariable Long id, @RequestBody Map<String, String> body, Authentication auth) {
         Order order = orderRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         if (order.getSellerEmail() == null || !order.getSellerEmail().equalsIgnoreCase(auth.getName()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This order is not assigned to your shop.");
         if ("PENDING".equalsIgnoreCase(order.getPaymentStatus())) throw new ResponseStatusException(HttpStatus.CONFLICT, "This order is awaiting payment verification.");
-        order.setOrderStatus(validateStatus(body.get("status")));
+        boolean wasCancelled = "Cancelled".equalsIgnoreCase(order.getOrderStatus());
+        String nextStatus = validateStatus(body.get("status"));
+        if (wasCancelled && !"Cancelled".equalsIgnoreCase(nextStatus) && !reserveStock(List.of(order)))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This order cannot be reopened because there is not enough stock.");
+        order.setOrderStatus(nextStatus);
+        if (!wasCancelled && "Cancelled".equalsIgnoreCase(nextStatus)) releaseStock(order);
         Order saved = orderRepository.save(order); saved.setProductCostPrice(null); return saved;
     }
 
     @PatchMapping("/admin/{id}/status")
+    @Transactional
     public Order updateAdminOrderStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
         Order order = orderRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         if ("PENDING".equalsIgnoreCase(order.getPaymentStatus())) throw new ResponseStatusException(HttpStatus.CONFLICT, "This order is awaiting payment verification.");
-        order.setOrderStatus(validateStatus(body.get("status")));
+        boolean wasCancelled = "Cancelled".equalsIgnoreCase(order.getOrderStatus());
+        String nextStatus = validateStatus(body.get("status"));
+        if (wasCancelled && !"Cancelled".equalsIgnoreCase(nextStatus) && !reserveStock(List.of(order)))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This order cannot be reopened because there is not enough stock.");
+        order.setOrderStatus(nextStatus);
+        if (!wasCancelled && "Cancelled".equalsIgnoreCase(nextStatus)) releaseStock(order);
         Order saved = orderRepository.save(order); saved.setProductCostPrice(null); return saved;
     }
 
-    private List<Order> buildOrders(DeliveryAddress address, String buyerEmail, String method, String paymentStatus) {
-        Cart cart = cartRepository.findByBuyerEmailIgnoreCase(buyerEmail)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Your cart is empty."));
-        List<CartItem> items = cartItemRepository.findByCart_Id(cart.getId());
-        if (items.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Your cart is empty.");
-        BigDecimal subtotalAll = BigDecimal.ZERO;
-        for (CartItem item : items) {
-            Product product = item.getProduct();
-            if (item.getQuantity() == null || item.getQuantity() < 1 || product.getPrice() == null || product.getPrice() < 0)
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "A cart item has invalid quantity or price.");
-            if (product.getStock() == null || item.getQuantity() > product.getStock())
-                throw new ResponseStatusException(HttpStatus.CONFLICT, product.getProductName() + " does not have enough stock.");
-            subtotalAll = subtotalAll.add(BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(item.getQuantity())));
+    private boolean reserveStock(List<Order> orders) {
+        for (Order order : orders) {
+            if (!stock.reserve(order.getProductId(), order.getQuantity() == null ? 0 : order.getQuantity())) return false;
         }
-        subtotalAll = subtotalAll.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal deliveryAll = DeliveryChargeCalculator.calculateDeliveryCharge(subtotalAll);
-        boolean deliveryAssigned = false;
-        LocalDateTime now = LocalDateTime.now();
-        java.util.ArrayList<Order> orders = new java.util.ArrayList<>();
-        for (CartItem item : items) {
-            Product product = item.getProduct();
-            BigDecimal lineSubtotal = BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(item.getQuantity())).setScale(2, RoundingMode.HALF_UP);
-            double gstRate = product.getGstRate() == null ? 18.0 : product.getGstRate();
-            BigDecimal gst = lineSubtotal.multiply(BigDecimal.valueOf(gstRate))
-                    .divide(BigDecimal.valueOf(100.0 + gstRate), 2, RoundingMode.HALF_UP);
-            BigDecimal taxable = lineSubtotal.subtract(gst).setScale(2, RoundingMode.HALF_UP);
-            User seller = product.getSellerEmail() == null ? null : users.findByEmailIgnoreCase(product.getSellerEmail()).orElse(null);
-            if (product.getSellerEmail() != null && (seller == null || !"VERIFIED".equalsIgnoreCase(seller.getGstinStatus())
-                    || !product.isHsnVerified() || product.getHsnCode() == null || product.getHsnCode().isBlank()))
-                throw new ResponseStatusException(HttpStatus.CONFLICT, product.getProductName() + " is not available until seller GSTIN and HSN details are verified by an admin.");
-            String sellerState = seller == null ? address.state().trim() : (seller.getState() == null ? "" : seller.getState().trim());
-            if (seller != null && sellerState.isBlank())
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "The seller must submit a registered business state before this order can be taxed correctly.");
-            String sellerGstin = seller == null ? "" : (seller.getGstin() == null ? "" : seller.getGstin());
-            boolean intrastate = !sellerState.isBlank() && normalizeState(sellerState).equals(normalizeState(address.state()));
-            BigDecimal cgst = intrastate ? gst.divide(new BigDecimal("2"), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            BigDecimal sgst = intrastate ? gst.subtract(cgst) : BigDecimal.ZERO;
-            BigDecimal igst = intrastate ? BigDecimal.ZERO : gst;
-            double feeRate = product.getPlatformFeePercent() == null ? ProductPricing.DEFAULT_PLATFORM_FEE_PERCENT : product.getPlatformFeePercent();
-            BigDecimal commission = taxable.multiply(BigDecimal.valueOf(feeRate)).movePointLeft(2).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal commissionGst = commission.multiply(new BigDecimal("0.18")).setScale(2, RoundingMode.HALF_UP);
-            boolean platformCollected = "PAID".equalsIgnoreCase(paymentStatus) && "RAZORPAY".equalsIgnoreCase(method);
-            BigDecimal tcs = product.getSellerEmail() != null && platformCollected
-                    ? taxable.multiply(new BigDecimal("0.005")).setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            BigDecimal tcsHalf = intrastate && tcs.signum() > 0 ? tcs.divide(new BigDecimal("2"), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            BigDecimal payout = taxable.subtract(commission).subtract(commissionGst).subtract(tcs).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal delivery = deliveryAssigned ? BigDecimal.ZERO : deliveryAll;
-            deliveryAssigned = true;
-            Order order = new Order();
-            order.setCustomerName(address.fullName().trim()); order.setPhone(address.phone().trim());
-            order.setAddress(address.addressLine().trim()); order.setCity(address.city().trim());
-            order.setState(address.state().trim()); order.setPincode(address.pincode().trim());
-            order.setProductId(product.getId()); order.setProductName(product.getProductName()); order.setProductImage(product.getImageUrl());
-            order.setProductPrice(product.getPrice()); order.setProductCostPrice(product.getCostPrice());
-            order.setProductOperatingCost(product.getOperatingCost()); order.setProductPlatformFeePercent(product.getPlatformFeePercent());
-            order.setGstRate(gstRate); order.setHsnCode(product.getHsnCode()); order.setSellerState(sellerState);
-            order.setSellerGstin(sellerGstin);
-            order.setQuantity(item.getQuantity());
-            order.setSubtotal(lineSubtotal.doubleValue()); order.setTaxableValue(taxable.doubleValue()); order.setGst(gst.doubleValue());
-            order.setCgst(cgst.doubleValue()); order.setSgst(sgst.doubleValue()); order.setIgst(igst.doubleValue());
-            order.setMarketplaceCommission(commission.doubleValue()); order.setCommissionGst(commissionGst.doubleValue());
-            order.setTcs(tcs.doubleValue()); order.setTcsCgst(tcsHalf.doubleValue());
-            order.setTcsSgst(intrastate ? tcs.subtract(tcsHalf).doubleValue() : 0.0); order.setTcsIgst(intrastate ? 0.0 : tcs.doubleValue());
-            order.setNetSellerPayout(payout.doubleValue()); order.setDeliveryCharge(delivery.doubleValue());
-            order.setTotalAmount(lineSubtotal.add(delivery).doubleValue()); order.setBuyerEmail(buyerEmail);
-            order.setSellerEmail(product.getSellerEmail()); order.setOrderStatus("Placed"); order.setOrderDate(now);
-            order.setPaymentMethod(method); order.setPaymentStatus(paymentStatus); orders.add(order);
-        }
-        return orders;
+        return true;
     }
-
-    private void clearCart(String buyerEmail) {
-        cartRepository.findByBuyerEmailIgnoreCase(buyerEmail).ifPresent(cart -> cartItemRepository.deleteByCart_Id(cart.getId()));
+    private void reserveStockOrFail(List<Order> orders) {
+        for (Order order : orders) {
+            if (!stock.reserve(order.getProductId(), order.getQuantity() == null ? 0 : order.getQuantity()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        order.getProductName() + " does not have enough stock.");
+        }
+    }
+    private void releaseStock(Order order) {
+        stock.release(order.getProductId(), order.getQuantity() == null ? 0 : order.getQuantity());
     }
     private void hideSellerPricing(Order order) {
         order.setProductCostPrice(null);
         order.setProductOperatingCost(null);
         order.setProductPlatformFeePercent(null);
     }
-    private void validateAddress(DeliveryAddress address) {
-        if (address == null || blank(address.fullName()) || blank(address.phone()) || blank(address.addressLine())
-                || blank(address.city()) || blank(address.state()) || blank(address.pincode()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Complete the delivery address before placing your order.");
-    }
-    private boolean blank(String value) { return value == null || value.isBlank(); }
-    private String normalizeState(String value) { return value == null ? "" : value.toLowerCase().replaceAll("[^a-z]", ""); }
     private double sum(List<Order> orders, java.util.function.Function<Order, Double> field) {
         return orders.stream().map(field).filter(java.util.Objects::nonNull).mapToDouble(Double::doubleValue).sum();
     }
@@ -333,7 +280,6 @@ public class OrderController {
         return status;
     }
 
-    public record DeliveryAddress(String fullName, String phone, String addressLine, String city, String state, String pincode) {}
     public record DemoPaymentRequest(DeliveryAddress address, String method) {}
     public record PaymentConfig(boolean razorpayEnabled, String keyId, boolean demoPaymentEnabled) {}
     public record CreatePaymentResponse(Long attemptId, String orderId, Long amount, String currency, String keyId) {}

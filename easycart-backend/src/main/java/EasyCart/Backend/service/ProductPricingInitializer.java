@@ -1,11 +1,11 @@
 package EasyCart.Backend.service;
 
-import EasyCart.Backend.controller.ProductPricing;
 import EasyCart.Backend.entity.Product;
 import EasyCart.Backend.repository.ProductRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import EasyCart.Backend.utils.ProductPricing;
 
 import java.util.List;
 import java.math.BigDecimal;

@@ -1,4 +1,4 @@
-package EasyCart.Backend.controller;
+package EasyCart.Backend.utils;
 
 import EasyCart.Backend.entity.Product;
 

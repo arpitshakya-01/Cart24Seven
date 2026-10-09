@@ -35,14 +35,14 @@ public class AuthService {
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered.");
         }
-        User user = new User();
+        User user = User.forRole(Role.BUYER);
         user.setName(request.getName().trim());
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.BUYER.name());
         try {
             User saved = userRepository.save(user);
-            return new AuthResponse(null, saved.getName(), saved.getEmail(), Role.BUYER.name());
+            return new AuthResponse(null, saved.getName(), saved.getEmail(), Role.BUYER.name(), saved.getDashboardPath());
         } catch (org.springframework.dao.DataIntegrityViolationException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered.");
         }
@@ -81,7 +81,8 @@ public class AuthService {
 
     private AuthResponse responseFor(User user) {
         String role = Role.from(user.getRole()).name();
-        return new AuthResponse(jwtService.generateToken(user.getEmail(), role), user.getName(), user.getEmail(), role);
+        return new AuthResponse(jwtService.generateToken(user.getEmail(), role), user.getName(), user.getEmail(), role,
+                user.getDashboardPath());
     }
 }
 

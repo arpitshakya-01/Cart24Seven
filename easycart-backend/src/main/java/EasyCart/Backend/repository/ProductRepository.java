@@ -45,17 +45,29 @@ public class ProductRepository {
                 p.getPlatformFeePercent(),p.getProfitMarginPercent(),p.getRating(),p.getStock(),p.getDiscount(),p.getSellerEmail(),categoryId};
     }
 
-    public List<Product> findAll() { return jdbc.query(SELECT + " ORDER BY p.id", this::map).stream().map(this::attachMedia).toList(); }
+    public List<Product> findAll() { return attachMedia(jdbc.query(SELECT + " ORDER BY p.id", this::map)); }
     public List<Product> saveAll(Iterable<Product> products) {
         java.util.ArrayList<Product> saved = new java.util.ArrayList<>();
         for (Product product : products) saved.add(save(product));
         return saved;
     }
     public Optional<Product> findById(Long id) { return jdbc.queryOne(SELECT + " WHERE p.id=?", this::map, id).map(this::attachMedia); }
-    public List<Product> findBySellerEmailIgnoreCase(String email) { return jdbc.query(SELECT + " WHERE LOWER(p.seller_email)=LOWER(?) ORDER BY p.id", this::map, email).stream().map(this::attachMedia).toList(); }
+    public List<Product> findBySellerEmailIgnoreCase(String email) { return attachMedia(jdbc.query(SELECT + " WHERE LOWER(p.seller_email)=LOWER(?) ORDER BY p.id", this::map, email)); }
     public void delete(Product product) { jdbc.update("DELETE FROM products WHERE id=?", product.getId()); }
 
     private Product attachMedia(Product product) { product.setMedia(mediaRepository.findByProductId(product.getId())); if (!product.getMedia().isEmpty()) product.setImageUrl(product.getMedia().get(0).getUrl()); return product; }
+
+    private List<Product> attachMedia(List<Product> products) {
+        if (products.isEmpty()) return products;
+        java.util.Map<Long, List<EasyCart.Backend.entity.ProductMedia>> mediaByProduct = mediaRepository.findByProductIds(
+                products.stream().map(Product::getId).toList());
+        for (Product product : products) {
+            List<EasyCart.Backend.entity.ProductMedia> media = mediaByProduct.getOrDefault(product.getId(), List.of());
+            product.setMedia(media);
+            if (!media.isEmpty()) product.setImageUrl(media.get(0).getUrl());
+        }
+        return products;
+    }
 
     private Product map(ResultSet row) throws SQLException {
         Product p = new Product();

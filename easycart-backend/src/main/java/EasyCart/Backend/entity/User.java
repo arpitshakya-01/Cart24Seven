@@ -17,6 +17,22 @@ public class User {
     private String gstinStatus = "NOT_SUBMITTED";
 
     public User() {}
+    public static User forRole(Role role) {
+        return switch (role) {
+            case BUYER -> new Buyer();
+            case SELLER -> new Seller();
+            case ADMIN -> new Admin();
+        };
+    }
+    public User asRoleType() {
+        User typed = forRole(Role.from(role));
+        typed.setId(id); typed.setName(name); typed.setEmail(email); typed.setPassword(password);
+        typed.setRole(role); typed.setPhone(phone); typed.setAddressLine(addressLine); typed.setCity(city);
+        typed.setState(state); typed.setPincode(pincode); typed.setPaymentPreference(paymentPreference);
+        typed.setGstin(gstin); typed.setGstinStatus(gstinStatus);
+        return typed;
+    }
+    public String getDashboardPath() { return "/"; }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
