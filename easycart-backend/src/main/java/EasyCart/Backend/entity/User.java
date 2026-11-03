@@ -15,6 +15,7 @@ public class User {
     private String paymentPreference;
     private String gstin;
     private String gstinStatus = "NOT_SUBMITTED";
+    private boolean emailVerified = true;
 
     public User() {}
     public static User forRole(Role role) {
@@ -30,6 +31,7 @@ public class User {
         typed.setRole(role); typed.setPhone(phone); typed.setAddressLine(addressLine); typed.setCity(city);
         typed.setState(state); typed.setPincode(pincode); typed.setPaymentPreference(paymentPreference);
         typed.setGstin(gstin); typed.setGstinStatus(gstinStatus);
+        typed.setEmailVerified(emailVerified);
         return typed;
     }
     public String getDashboardPath() { return "/"; }
@@ -59,5 +61,7 @@ public class User {
     public void setGstin(String gstin) { this.gstin = gstin == null ? null : gstin.trim().toUpperCase(Locale.ROOT); }
     public String getGstinStatus() { return gstinStatus; }
     public void setGstinStatus(String gstinStatus) { this.gstinStatus = gstinStatus == null ? "NOT_SUBMITTED" : gstinStatus.trim().toUpperCase(Locale.ROOT); }
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
 }
 

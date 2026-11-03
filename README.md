@@ -173,6 +173,20 @@ Choose a password of at least 8 characters. While these bootstrap variables are 
 
 The account whose email matches CART24SEVEN_ADMIN_EMAIL is the protected primary admin. The admin user API rejects attempts to edit, demote, or delete it, and the admin screen disables those controls. Change its configured details through the Render backend environment. If the bootstrap email is blank, all existing ADMIN accounts are protected from user-management changes as a fail-safe.
 
+### Email verification for new accounts
+
+New buyer registrations, newly bootstrapped admin accounts, and accounts created by an administrator must verify their email before signing in. A buyer later assigned the SELLER role keeps the verified status of that account. Verification links expire after 24 hours; the sign-in and registration pages can resend a link.
+
+For a no-cost trial, create a Twilio SendGrid Email API account and use its current free trial (up to 100 emails per day for 60 days). Verify a sender identity in SendGrid, then set these values in the backend environment. The sender must exactly match the verified address:
+
+```text
+SENDGRID_API_KEY=your_sendgrid_api_key
+SENDGRID_FROM_EMAIL=your-verified-sender@example.com
+APP_FRONTEND_URL=https://your-frontend-domain
+```
+
+For local development, set them in the backend terminal or an ignored local environment file. For Render, add them under the `cart24seven-api` service Environment settings. Keep the API key secret. This integration calls SendGrid over HTTPS; Render free web services block outbound SMTP ports. The SendGrid trial is time-limited, and sending will stop when its trial ends unless the account is upgraded. Existing accounts remain verified so they can continue signing in.
+
 For the live Render deployment, enter database and admin values in the Render backend service's Environment settings. Never put production passwords in this repository. Razorpay is optional; without its keys, Razorpay checkout is unavailable. Demo payment behavior is controlled by `CART24SEVEN_DEMO_PAYMENTS_ENABLED`.
 
 ### 5. Start the backend

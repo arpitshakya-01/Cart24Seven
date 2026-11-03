@@ -27,6 +27,7 @@ import BrowsingHistory from "../pages/BrowsingHistory";
 import Navbar from "../components/Navbar";
 import RequireRole from "./RequireRole";
 import Footer from "../components/Footer";
+import VerifyEmail from "../pages/VerifyEmail";
 
 function StorefrontAccess() {
     const { user, role, isLoggedIn } = useAuth();
@@ -44,6 +45,7 @@ function AppRoutes() {
             <Route path="/product/:id" element={<ProductDetails/>}/>
         </Route>
         <Route path="/login" element={<Login/>}/><Route path="/admin/login" element={<Login/>}/><Route path="/register" element={<Register/>}/>
+        <Route path="/verify-email" element={<VerifyEmail/>}/>
         <Route element={<RequireRole roles={["BUYER"]}/> }>
             <Route path="/cart" element={<Cart/>}/><Route path="/wishlist" element={<Wishlist/>}/><Route path="/checkout" element={<Checkout/>}/><Route path="/order-success" element={<OrderSuccess/>}/><Route path="/my-orders" element={<MyOrders/>}/><Route path="/my-orders/:id" element={<OrderDetails/>}/><Route path="/profile" element={<BuyerProfile/>}/><Route path="/browsing-history" element={<BrowsingHistory/>}/>
         </Route>

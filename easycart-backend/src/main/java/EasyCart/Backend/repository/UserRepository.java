@@ -11,7 +11,7 @@ import java.util.Optional;
 
 @Repository
 public class UserRepository {
-    private static final String COLUMNS = "id, name, email, password, role, phone, address_line, city, state, pincode, payment_preference, gstin, gstin_status";
+    private static final String COLUMNS = "id, name, email, password, role, phone, address_line, city, state, pincode, payment_preference, gstin, gstin_status, email_verified";
     private final JdbcRepositorySupport jdbc;
 
     public UserRepository(JdbcRepositorySupport jdbc) { this.jdbc = jdbc; }
@@ -23,10 +23,10 @@ public class UserRepository {
         user.setRole(Role.from(user.getRole()).name());
         if (user.getGstinStatus() == null) user.setGstinStatus("NOT_SUBMITTED");
         if (user.getId() == null) {
-            String sql = "INSERT INTO users (name,email,password,role,phone,address_line,city,state,pincode,payment_preference,gstin,gstin_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)";
+            String sql = "INSERT INTO users (name,email,password,role,phone,address_line,city,state,pincode,payment_preference,gstin,gstin_status,email_verified) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)";
             user.setId(jdbc.insert(sql, values(user)));
         } else {
-            String sql = "UPDATE users SET name=?,email=?,password=?,role=?,phone=?,address_line=?,city=?,state=?,pincode=?,payment_preference=?,gstin=?,gstin_status=? WHERE id=?";
+            String sql = "UPDATE users SET name=?,email=?,password=?,role=?,phone=?,address_line=?,city=?,state=?,pincode=?,payment_preference=?,gstin=?,gstin_status=?,email_verified=? WHERE id=?";
             Object[] values = values(user);
             Object[] withId = java.util.Arrays.copyOf(values, values.length + 1);
             withId[values.length] = user.getId();
@@ -38,7 +38,7 @@ public class UserRepository {
     private Object[] values(User user) {
         return new Object[]{user.getName(), user.getEmail(), user.getPassword(), user.getRole(), user.getPhone(),
                 user.getAddressLine(), user.getCity(), user.getState(), user.getPincode(), user.getPaymentPreference(),
-                user.getGstin(), user.getGstinStatus()};
+                user.getGstin(), user.getGstinStatus(), user.isEmailVerified()};
     }
 
     public List<User> findAll() { return jdbc.query("SELECT " + COLUMNS + " FROM users ORDER BY id", this::map); }
@@ -65,6 +65,7 @@ public class UserRepository {
         user.setPaymentPreference(row.getString("payment_preference"));
         user.setGstin(row.getString("gstin"));
         user.setGstinStatus(row.getString("gstin_status"));
+        user.setEmailVerified(row.getBoolean("email_verified"));
         return user;
     }
 }

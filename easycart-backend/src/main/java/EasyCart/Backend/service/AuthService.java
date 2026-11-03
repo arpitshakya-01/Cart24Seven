@@ -22,15 +22,19 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final EmailVerificationService emailVerification;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager,
+                       JwtService jwtService, EmailVerificationService emailVerification) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.emailVerification = emailVerification;
     }
 
     public AuthResponse register(RegisterRequest request) {
+        emailVerification.requireConfigured();
         String email = normalizeEmail(request.getEmail());
         if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered.");
@@ -40,8 +44,10 @@ public class AuthService {
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.BUYER.name());
+        user.setEmailVerified(false);
         try {
             User saved = userRepository.save(user);
+            emailVerification.send(saved);
             return new AuthResponse(null, saved.getName(), saved.getEmail(), Role.BUYER.name(), saved.getDashboardPath());
         } catch (org.springframework.dao.DataIntegrityViolationException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This email is already registered.");
@@ -52,6 +58,8 @@ public class AuthService {
         String email = normalizeEmail(request.getEmail());
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password."));
+        if (!user.isEmailVerified())
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Verify your email before signing in.");
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, request.getPassword()));
         } catch (org.springframework.security.core.AuthenticationException exception) {

@@ -12,8 +12,22 @@ CREATE TABLE IF NOT EXISTS users (
   payment_preference VARCHAR(255) NULL,
   gstin VARCHAR(15) NULL,
   gstin_status VARCHAR(24) NOT NULL DEFAULT 'NOT_SUBMITTED',
+  email_verified BIT(1) NOT NULL DEFAULT b'1',
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME(6) NOT NULL,
+  created_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_email_verification_user (user_id),
+  UNIQUE KEY uk_email_verification_token_hash (token_hash),
+  KEY idx_email_verification_expiry (expires_at),
+  CONSTRAINT fk_email_verification_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS categories (

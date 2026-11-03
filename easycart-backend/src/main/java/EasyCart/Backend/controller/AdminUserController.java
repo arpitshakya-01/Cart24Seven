@@ -2,6 +2,7 @@ package EasyCart.Backend.controller;
 
 import EasyCart.Backend.entity.User;
 import EasyCart.Backend.repository.UserRepository;
+import EasyCart.Backend.service.EmailVerificationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -19,13 +20,15 @@ import java.util.Map;
 public class AdminUserController {
     private final UserRepository users;
     private final PasswordEncoder encoder;
+    private final EmailVerificationService emailVerification;
 
     @Value("${app.bootstrap.admin-email:}")
     private String primaryAdminEmail;
 
-    public AdminUserController(UserRepository users, PasswordEncoder encoder) {
+    public AdminUserController(UserRepository users, PasswordEncoder encoder, EmailVerificationService emailVerification) {
         this.users = users;
         this.encoder = encoder;
+        this.emailVerification = emailVerification;
     }
 
     @GetMapping
@@ -54,7 +57,11 @@ public class AdminUserController {
         user.setEmail(email);
         user.setPassword(encoder.encode(password));
         user.setRole(role(body.get("role")));
-        return summary(users.save(user));
+        user.setEmailVerified(false);
+        emailVerification.requireConfigured();
+        User saved = users.save(user);
+        emailVerification.send(saved);
+        return summary(saved);
     }
 
     @PutMapping("/{id}")
@@ -69,6 +76,7 @@ public class AdminUserController {
             }
             user.setName(body.get("name").trim());
         }
+        boolean emailChanged = false;
         if (body.containsKey("email")) {
             String email = normalizeEmail(body.get("email"));
             if (email.isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email cannot be empty.");
@@ -79,7 +87,8 @@ public class AdminUserController {
             if (!email.equalsIgnoreCase(user.getEmail()) && users.existsByEmail(email)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists.");
             }
-            user.setEmail(email);
+            emailChanged = !email.equalsIgnoreCase(user.getEmail());
+            if (emailChanged) user.setEmail(email);
         }
         if (body.containsKey("role")) user.setRole(role(body.get("role")));
         if (body.containsKey("gstinStatus")) {
@@ -102,7 +111,13 @@ public class AdminUserController {
             }
             user.setPassword(encoder.encode(body.get("password")));
         }
-        return summary(users.save(user));
+        if (emailChanged) {
+            emailVerification.requireConfigured();
+            user.setEmailVerified(false);
+        }
+        User saved = users.save(user);
+        if (emailChanged) emailVerification.send(saved);
+        return summary(saved);
     }
 
     @DeleteMapping("/{id}")

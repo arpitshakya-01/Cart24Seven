@@ -29,6 +29,9 @@ export const registerUser = async (userData) => (await api.post("/auth/register"
     password: userData.password,
 })).data;
 
+export const verifyEmail = async (token) => (await api.post("/auth/verify-email", { token })).data;
+export const resendVerificationEmail = async (email) => (await api.post("/auth/verification/resend", { email: email?.trim() })).data;
+
 export const loginUser = async (loginData) => {
     const data = (await api.post("/auth/login", {
         email: loginData.email?.trim(),
