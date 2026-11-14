@@ -21,7 +21,7 @@ Small sellers often lack an affordable place to publish products and manage orde
 - **Frontend:** React 19, Vite, React Router, Tailwind CSS, Axios
 - **Backend:** Java 17, Spring Boot, Spring MVC, Spring Security, JWT
 - **Database:** MySQL 8 with direct JDBC and prepared statements
-- **Deployment:** Render for the frontend and API; MySQL-compatible database configured through backend environment variables; Docker for the API container
+- **Deployment:** Render for the frontend and API; Aiven MySQL for the hosted database; Docker for the API container
 
 The deployment described by `render.yaml` uses Render as the primary host. Its static-site rewrite serves `index.html` for browser routes so React Router pages work when opened or refreshed directly.
 
@@ -189,10 +189,6 @@ For local development, set them in the backend terminal or an ignored local envi
 
 For the live Render deployment, enter database and admin values in the Render backend service's Environment settings. Never put production passwords in this repository. Razorpay is optional; without its keys, Razorpay checkout is unavailable. Demo payment behavior is controlled by `CART24SEVEN_DEMO_PAYMENTS_ENABLED`.
 
-### Moving the hosted database to TiDB Cloud Starter
-
-The backend accepts a MySQL-compatible JDBC URL through `SPRING_DATASOURCE_URL`, so TiDB credentials belong in Render's private environment settings. See [`easycart-backend/AIVEN_TO_TIDB_MIGRATION.md`](easycart-backend/AIVEN_TO_TIDB_MIGRATION.md) for the export, import, row-count verification, and safe cutover procedure. Keep the Aiven source until the TiDB copy and live app checks are verified.
-
 ### 5. Start the backend
 
 Keep the terminal open so the environment variables remain available. From the project root, run:
@@ -250,7 +246,7 @@ On macOS/Linux, use `./mvnw -DskipTests package`.
 1. `cart24seven-site` builds the React/Vite frontend and publishes the `dist` directory.
 2. `cart24seven-api` builds and runs the Spring Boot API using the backend Dockerfile.
 
-The API connects to the hosted MySQL-compatible database using `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` in its hosting environment. For TiDB Cloud Starter, use a TLS-verified JDBC URL. The frontend receives the API address through `VITE_API_URL`. Uploaded files use the backend uploads directory; confirm persistent file storage is configured before relying on user-uploaded files across redeploys.
+The API connects to the hosted Aiven MySQL database using `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD` in its hosting environment. The frontend receives the API address through `VITE_API_URL`. Uploaded files use the backend uploads directory; confirm persistent file storage is configured before relying on user-uploaded files across redeploys.
 
 ## Troubleshooting
 
