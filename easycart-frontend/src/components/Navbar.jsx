@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutDashboard, UserRound, Clock3, Moon, Sun } from "lucide-react";
+import { LayoutDashboard, UserRound, Clock3, Moon, Sun, Package, Plus, Users, ClipboardList } from "lucide-react";
 import { FaShoppingCart, FaHeart, FaBoxOpen, FaSearch } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { useProducts } from "../context/ProductContext";
@@ -67,14 +67,29 @@ function Navbar() {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3 2xl:gap-2">
             {user && <span className="max-w-24 truncate whitespace-nowrap text-xs font-semibold text-white sm:max-w-32 sm:text-sm" title={`Hi, ${displayName}`} aria-label={`Hi, ${displayName}`}>Hi, <span className="text-[#FFD21F]">{displayName}</span></span>}
             {canBrowse && <><Link to="/" className="hidden font-semibold hover:text-[#FFD21F] lg:block">Home</Link><Link to="/categories" className="hidden font-semibold hover:text-[#FFD21F] lg:block">Categories</Link></>}
-            {role==="ADMIN"&&<Link to="/admin" className="flex items-center gap-2 hover:text-[#FFD21F]"><LayoutDashboard size={18}/><span className="hidden xl:inline">Admin</span></Link>}
-            {role==="SELLER"&&<Link to="/seller" className="flex items-center gap-2 hover:text-[#FFD21F]"><LayoutDashboard size={18}/><span className="hidden xl:inline">Seller</span></Link>}
             {user && <Link to={profilePath} className="flex items-center gap-1 whitespace-nowrap hover:text-[#FFD21F]" aria-label="Open my profile" title="My profile"><UserRound size={18}/><span className="hidden xl:inline">Profile</span></Link>}
             {canBrowse&&<>{user&&role==="BUYER"&&<Link to="/browsing-history" className="hidden items-center gap-1 hover:text-[#FFD21F] 2xl:flex"><Clock3 size={17}/>History</Link>}<Link to="/wishlist" className="relative flex items-center gap-2 hover:text-[#FFD21F]" aria-label={`Wishlist, ${wishlistCount} saved items`}><FaHeart/><span className="hidden 2xl:inline">Wishlist</span>{wishlistCount > 0 && <span className="absolute -right-3 -top-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-xs font-bold text-white">{wishlistCount}</span>}</Link><Link to="/cart" className="relative flex items-center gap-2 hover:text-[#FFD21F]"><FaShoppingCart/><span className="hidden 2xl:inline">Cart</span><span className="absolute -right-3 -top-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#FFD21F] px-1 text-xs font-bold text-[#111111]">{cartCount}</span></Link>{user&&role==="BUYER"&&<Link to="/my-orders" className="hidden items-center gap-2 hover:text-[#FFD21F] md:flex"><FaBoxOpen/><span className="hidden 2xl:inline">My Orders</span></Link>}</>}
             <button type="button" onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 text-white transition hover:border-[#FFD21F] hover:text-[#FFD21F]">{theme === "dark" ? <Sun size={18}/> : <Moon size={18}/>}</button>
             {user?<button type="button" onClick={handleLogout} className="shrink-0 rounded-lg bg-[#FFD21F] px-3 py-2 text-sm font-bold text-[#111111] sm:px-5 sm:text-base">Logout</button>:<Link to="/login" className="shrink-0 rounded-lg bg-[#FFD21F] px-3 py-2 text-sm font-bold text-[#111111] sm:px-5 sm:text-base">Login</Link>}
         </div>
-    </div></div></nav>;
+    </div>
+        {(role === "ADMIN" || role === "SELLER") && <div className="-mx-1 flex gap-2 overflow-x-auto border-t border-white/10 py-2 [scrollbar-width:thin]" aria-label={role === "ADMIN" ? "Admin navigation" : "Seller navigation"}>
+            {(role === "ADMIN" ? [
+                ["Dashboard", "/admin", LayoutDashboard],
+                ["Orders", "/admin/orders", ClipboardList],
+                ["Customers & sellers", "/admin/customers", Users],
+                ["Products", "/admin/manage-products", Package],
+                ["Add product", "/admin/add-product", Plus],
+            ] : [
+                ["Dashboard", "/seller", LayoutDashboard],
+                ["My products", "/seller/manage-products", Package],
+                ["Add product", "/seller/add-product", Plus],
+                ["Orders", "/seller#seller-orders", ClipboardList],
+            ]).map(([label, to, Icon]) => <NavLink key={label} to={to} end={to === "/admin" || to === "/seller"} className={({ isActive }) => `inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${isActive ? "bg-[#FFD21F] text-[#111111]" : "text-white/85 hover:bg-white/10 hover:text-[#FFD21F]"}`}>
+                <Icon size={16}/>{label}
+            </NavLink>)}
+        </div>}
+    </div></nav>;
 }
 export default Navbar;
 

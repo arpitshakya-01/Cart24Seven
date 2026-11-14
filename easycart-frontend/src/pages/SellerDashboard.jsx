@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AlertTriangle, BarChart3, CircleDollarSign, ClipboardList, Package, PlusCircle, RefreshCw, Tags, TrendingUp, FileSpreadsheet, ShieldCheck } from "lucide-react";
 import api from "../services/api";
 
@@ -10,6 +10,7 @@ const paymentLabel = (method) => method?.startsWith("DEMO_") ? `Demo · ${method
 const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
 
 export default function SellerDashboard() {
+    const location = useLocation();
     const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);
     const [error, setError] = useState("");
@@ -25,6 +26,11 @@ export default function SellerDashboard() {
         finally { setLoading(false); }
     };
     useEffect(() => { refresh(); }, []);
+    useEffect(() => {
+        if (location.hash !== "#seller-orders") return;
+        const timer = window.setTimeout(() => document.getElementById("seller-orders")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+        return () => window.clearTimeout(timer);
+    }, [location.hash]);
 
     const lowStock = useMemo(() => products.filter((p) => Number(p.stock || 0) <= 5), [products]);
     const activeOrders = useMemo(() => orders.filter((order) => !cancelled(order) && !String(order.paymentMethod || "").startsWith("DEMO") && order.paymentStatus !== "UNPAID"), [orders]);
@@ -116,6 +122,6 @@ export default function SellerDashboard() {
 
         <section className="mb-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#111111]"><Package className="text-[#a78000]" size={22}/>Inventory and low stock</h2>{products.length===0&&!loading?<p className="text-slate-500">No products belong to this seller yet.</p>:<div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="border-b bg-[#111111] text-[#FFD21F]"><th className="p-3">Product</th><th className="p-3">Buyer price / MRP</th><th className="p-3">Base price</th><th className="p-3">GST / HSN status</th><th className="p-3">Stock</th><th className="p-3">Media / reviews</th><th className="p-3">Inventory status</th></tr></thead><tbody>{products.map(p=><tr key={p.id} className="border-b border-slate-100 hover:bg-amber-50/70"><td className="p-3">{p.productName}</td><td className="p-3"><div>{money(p.price)} <small className="text-slate-500">incl. GST</small></div>{Number(p.mrp) > Number(p.price) && <div className="text-xs text-slate-400 line-through">{money(p.mrp)} MRP</div>}</td><td className="p-3">{money(p.basePrice)}</td><td className="p-3">{Number(p.gstRate || 0)}% · {p.hsnCode || "No HSN"}<small className={`block text-xs font-semibold ${p.hsnVerified ? "text-emerald-700" : "text-amber-700"}`}>{p.hsnVerified ? "Verified" : "Awaiting admin review"}</small></td><td className="p-3">{p.stock??0}</td><td className="p-3 text-sm">{(p.media||[]).length} media<br/><span className="text-slate-500">{Number(p.rating||0).toFixed(1)} ★ · {p.reviewCount||0} reviews</span></td><td className="p-3">{Number(p.stock||0)<=5?<span className="rounded-full bg-amber-100 px-3 py-1 text-amber-800">Low stock</span>:<span className="text-emerald-700">In stock</span>}</td></tr>)}</tbody></table></div>}</section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-bold text-[#111111]">Orders for your products</h2>{orders.length===0&&!loading?<p className="text-slate-500">No seller orders yet.</p>:<div className="space-y-3">{orders.map(o=><article key={o.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 p-4"><div className="min-w-0"><p className="font-semibold">{o.productName} × {o.quantity}</p><p className="text-sm text-slate-600">{o.customerName} · {o.orderStatus} · Gross paid {money(o.subtotal ?? o.totalAmount)}</p><p className="mt-1 text-xs text-slate-600">Taxable {money(o.taxableValue)} · GST {money(o.gst)} · Commission {money(o.marketplaceCommission)} + fee GST {money(o.commissionGst)} · TCS {money(o.tcs)}</p><p className="mt-1 text-sm font-bold text-emerald-800">Estimated net seller payout: {money(o.netSellerPayout)}</p><p className="mt-1 text-xs font-semibold text-slate-500">{paymentLabel(o.paymentMethod)} · {o.paymentStatus||"Payment status unavailable"}</p></div><select aria-label={"Update order " + o.id + " status"} value={o.orderStatus} onChange={e=>updateStatus(o,e.target.value)} className="rounded-lg border border-slate-300 p-2 focus:border-[#d6a900] focus:ring-2 focus:ring-[#FFD21F]">{["Placed","Processing","Shipped","Delivered","Cancelled"].map(s=><option key={s}>{s}</option>)}</select></article>)}</div>}</section>
+        <section id="seller-orders" className="scroll-mt-32 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="mb-4 text-xl font-bold text-[#111111]">Orders for your products</h2>{orders.length===0&&!loading?<p className="text-slate-500">No seller orders yet.</p>:<div className="space-y-3">{orders.map(o=><article key={o.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 p-4"><div className="min-w-0"><p className="font-semibold">{o.productName} × {o.quantity}</p><p className="text-sm text-slate-600">{o.customerName} · {o.orderStatus} · Gross paid {money(o.subtotal ?? o.totalAmount)}</p><p className="mt-1 text-xs text-slate-600">Taxable {money(o.taxableValue)} · GST {money(o.gst)} · Commission {money(o.marketplaceCommission)} + fee GST {money(o.commissionGst)} · TCS {money(o.tcs)}</p><p className="mt-1 text-sm font-bold text-emerald-800">Estimated net seller payout: {money(o.netSellerPayout)}</p><p className="mt-1 text-xs font-semibold text-slate-500">{paymentLabel(o.paymentMethod)} · {o.paymentStatus||"Payment status unavailable"}</p></div><select aria-label={"Update order " + o.id + " status"} value={o.orderStatus} onChange={e=>updateStatus(o,e.target.value)} className="rounded-lg border border-slate-300 p-2 focus:border-[#d6a900] focus:ring-2 focus:ring-[#FFD21F]">{["Placed","Processing","Shipped","Delivered","Cancelled"].map(s=><option key={s}>{s}</option>)}</select></article>)}</div>}</section>
     </div></main>;
 }
